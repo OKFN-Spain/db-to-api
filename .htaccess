@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
 RewriteEngine On
-RewriteBase /db-to-api/
+RewriteBase /dta/
 
 #db + table + column + value
 RewriteCond %{REQUEST_FILENAME} !-f

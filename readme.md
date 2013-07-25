@@ -1,7 +1,7 @@
 Database to API
 =======================
 
-Dynamically generate RESTful APIs from the contents of a database table. Provides JSON, XML, and HTML. Supports most popular databases.
+Dynamically generate RESTful APIs from the contents of a database table. Provides JSON, XML, and HTML.
 
 What Problem This Solves
 ------------------------
@@ -19,33 +19,27 @@ When Alternative PHP Cache (APC) is installed, parsed data is stored within APC,
 Databases Supported
 -------------------
 
-* 4D
-* CUBRID
-* Firebird/Interbase
-* IBM
-* Informix
-* MS SQL Server
-* MySQL
-* ODBC and DB2
-* Oracle
+We have tested the API with:
+
 * PostgreSQL
+* MySQL
 * SQLite
 
 API Structure
 -------------
 
-* all rows in a table: `/[database]/[table].[format]`
-* specific row in a table: `/[database]/[table]/[ID].[format]`
-* all rows matching a query: `/[database]/[table]/[column]/[value].[format]`
+* all rows in a table: `/[database]/[schema]/[table].[format]`
+* specific row in a table: `/[database]/[schema]/[table]/[ID].[format]`
+* all rows matching a query: `/[database]/[schema]/[table]/[column]/[value].[format]`
 
 Additional Parameters
 ---------------------
 
-* `order_by`: name of column to sort by
-* `direction`: direction to sort, either `asc` or `desc` (default `asc`)
+* `order_by`: name of column or columns to sort by, each column must be separated by comma. Add suffix '.desc' for reverse sorting ('.asc' also works)
 * `limit`: number, maximum number of results to return
+* `where`: 
 
-e.g., `/[database]/[table]/[column]/[value].[format]?order_by=[column]&direction=[direction]`
+e.g., `/[database]/[schema]/[table]/[column]/[value].[format]?order_by=[column_1].desc,[column_2]&limit=10`
 
 Requirements
 ------------
@@ -61,6 +55,8 @@ Usage
 1. Copy `config.sample.php` to `config.php`
 2. Follow the below example to register a new dataset in `config.php`. Tip: It's best to provide read-only database credentials here.
 3. Document the API.
+4. Be aware that some Apache2 configurations prevent from reading .htaccess files
+5. In .htaccess you should change the RewriteBase directive
 
 How to Register a Dataset
 -------------------------
@@ -86,37 +82,27 @@ register_db_api( 'dataset_name', $args );
 
 *Note: All fields (other than the dataset name) are optional and will default to the above.*
 
-Here is a `config.php` file for a MySQL database named “inspections,” accessed with a MySQL user named “website” and a password of “s3cr3tpa55w0rd,” with MySQL running on the same server as the website, with the standard port of 3306. All tables may be accessed by *Database to API* except for “cache” and “passwords,” and among the accessible tables, the “password_hint” column may not be accessed via *Database to API*. All of this is registered to create an API named “facility-inspections”.
-
 ```php
 
 $args = array( 
-			'name' => 'inspections',
-			'username' => 'website',
-			'password' => 's3cr3tpa55w0rd',
+			'name' => 'mypgdatabase',
+			'username' => 'mypguser',
+			'password' => 'mypassword',
 			'server' => 'localhost',
-			'port' => 3306,
-			'type' => 'mysql',
-			'table_blacklist' => array('cache', 'passwords'),
-			'column_blacklist' => array('password_hint'),
+			'port' => 5432,
+			'type' => 'pgsql',
+			'table_blacklist' => array('secreta', 'secretb'),
+			'column_blacklist' => array('secretcolumn'),
 );
 
-register_db_api( 'facility-inspections', $args );
+register_db_api( 'mypgdbapi', $args );
 
 ```
 
-Retrieving the contents of the table `history` within this dataset as JSON would be accomplished with a request for `/facility-inspections/history.json`. Note that it is the name of the dataset (`facility-inspections`) and not the name of the database (`inspections`) that is specified in the URL.
-
-For a SQLite database, simply provide the path to the database in `name`.
-
-For an Oracle database, you can either specify a service defined in tsnames.ora (e.g. `dept_spending`) or you can define an Oracle Instant Client connection string (e.g., `//localhost:1521/dept_spending`).
+Retrieving the contents of the table `history` within this dataset as JSON would be accomplished with a request for `/mypgdbapi/history.json`. Note that it is the name of the dataset (`mypgdbapi`) and not the name of the database (`mypgdatabase`) that is specified in the URL.
 
 License
 -------
 
 GPLv3 or later.
 
-Roadmap
--------
-
-* Automagic documentation generation

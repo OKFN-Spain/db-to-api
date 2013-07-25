@@ -10,6 +10,7 @@ class DB_API {
 	public $ttl = 3600;
 	public $cache = array();
 	public $connections = array();
+    public $dbtype = null;
 
 	function __construct() {
 
@@ -35,11 +36,11 @@ class DB_API {
 
 		$defaults = array(
 			'name' => null,
-			'username' => 'root',
+			'username' => 'postgres',
 			'password' => 'root',
 			'server' => 'localhost',
-			'port' => 3306,
-			'type' => 'mysql',
+			'port' => 5432,
+			'type' => 'pgsql',
 			'table_blacklist' => array(),
 			'column_blacklist' => array(),
 			'ttl' => $this->ttl,
@@ -170,10 +171,6 @@ class DB_API {
 			$this->error( 'Invalid table', 404 );
 		}
 
-		if ( !in_array( $parts['direction'], array( 'ASC', 'DESC' ) ) ) {
-			$parts['direction'] = null;
-		}
-
 		if ( !in_array( $parts['format'], array( 'html', 'xml', 'json' ) ) ) {
 			$parts['format'] = null;
 		}
@@ -236,7 +233,7 @@ class DB_API {
 
 		// cache
 		$this->connections[$db->type] = &$dbh;
-		
+		$this->dbtype = $db->type;
 		return $dbh;
 
 	}
@@ -250,12 +247,17 @@ class DB_API {
 	function verify_table( $query_table, $db = null ) {
 		
 		$tables = $this->cache_get( $this->get_db( $db )->name . '_tables' );
-		
+
 		if ( !$tables  ) {
 		
 			$dbh = &$this->connect( $db );
 			try { 
-				$stmt = $dbh->query( 'SHOW TABLES' );
+                if ( $this->dbtype == 'sqlite' ){
+                    $stmt = $dbh->query( 'SELECT name, sql FROM sqlite_master WHERE type=\'table\' ORDER BY name;' );
+                }
+                else {
+                    $stmt = $dbh->query( 'SELECT table_name FROM INFORMATION_SCHEMA.COLUMNS;' );
+                }
 			} catch( PDOException $e ) {
 				$this->error( $e );
 			}
@@ -267,6 +269,11 @@ class DB_API {
 		
 		}
 		
+        if (preg_match("/\./",$query_table)) {
+            $partestable = explode(".",$query_table);
+            $query_table = $partestable[1];
+            $schema = $partestable[0];
+        }
 		return in_array( $query_table, $tables );
 		
 	}
@@ -291,13 +298,29 @@ class DB_API {
 			
 		$dbh = &$this->connect( $db );
 		
-		try {
-			$q = $dbh->prepare( "DESCRIBE $table" );
-			$q->execute();
-			$columns = $q->fetchAll(PDO::FETCH_COLUMN);
-		} catch( PDOException $e ) {
-			$this->error( $e );
-		}
+        if ( $this->dbtype == 'sqlite' ){
+            $columns = array_reduce(
+                  $dbh->query("PRAGMA table_info(`$table`)")->fetchAll(),
+                    function($rV,$cV) { $rV[]=$cV['name']; return $rV; },
+                      array()
+                  );
+        }
+        else {
+            try {
+                $and = "";
+                if (preg_match("/\./",$table)) {
+                    $partestable = explode(".",$table);
+                    $table = $partestable[1];
+                    $schema = $partestable[0];
+                    $and = " AND table_schema = '$schema'";
+                }
+                $q = $dbh->prepare( "SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '$table'".$and." ORDER BY ordinal_position");
+                $q->execute();
+                $columns = $q->fetchAll(PDO::FETCH_COLUMN);
+            } catch( PDOException $e ) {
+                $this->error( $e );
+            }
+        }
 		
 		$this->cache_set( $key, $columns, $this->get_db( $db )->ttl );
 		return $columns;
@@ -359,31 +382,52 @@ class DB_API {
 		  }
 
 		  $sql = 'SELECT * FROM ' . $query['table'];
+          $wsql = '';
+          $osql = '';
+          $lsql = '';
 
 			if ( $query['value'] && $query['column'] == null ) {
 				$query['column'] = $this->get_first_column( $query['table'] );
 			}
 
 			if ( $query['value'] && $query['column'] ) {
-				$sql .= " WHERE `{$query['table']}`.`{$query['column']}` = :value";
+                $cname = "{$query['table']}.{$query['column']}";
+                $table = $query['table'];
+                if (preg_match("/\./",$table)) {
+                    $partestable = explode(".",$table);
+                    $table = $partestable[1];
+                    $schema = $partestable[0];
+                    $cname = "{$table}.{$query['column']}";
+                }
+				$wsql = " WHERE $cname = :value";
 			}
 
-			if ( $query['order_by'] && $query['direction'] ) {
+			if ( $query['order_by'] ) {
+                $oby = $query['order_by'];
+                $partesoby = explode(",",$oby);
+                $posql = array();
+                foreach ($partesoby as $poby) {
+                    $partespoby = explode(".",$poby);
+                    if ( !$this->verify_column( $partespoby[0], $query['table'] ) ) {
+                        return false;
+                    }
+                    $posql[] = "{$query['table']}.{$partespoby[0]} {$partespoby[1]}";
+                } 
 
-				if ( !$this->verify_column( $query['order_by'], $query['table'] ) ) {
-					return false;
-				}
-
-				$sql .= " ORDER BY `{$query['table']}`.`{$query['order_by']}` {$query['direction']}";
+				$osql = " ORDER BY ".implode(",",$posql);
 
 			}
 
 			if ( $query['limit'] ) {
-				$sql .= " LIMIT " . (int) $query['limit'];
-			}
+				$lsql = " LIMIT " . (int) $query['limit'];
+            }
+
+            $sql .= $wsql.$osql.$lsql;
 
 			$sth = $dbh->prepare( $sql );
-			$sth->bindParam( ':value', $query['value'] );
+            if ( $query['value'] != null ){
+                $sth->bindParam( ':value', $query['value'] );
+            }
 			$sth->execute();
 
 			$results = $sth->fetchAll( PDO::FETCH_OBJ );
