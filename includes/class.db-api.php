@@ -147,7 +147,7 @@ class DB_API {
 			'db' => null,
 			'table' => null,
 			'order_by' => null,
-			'direction' => 'ASC',
+            'where' => null,
 			'column' => null,
 			'value' => null,
 			'limit' => null,
@@ -401,6 +401,28 @@ class DB_API {
                 }
 				$wsql = " WHERE $cname = :value";
 			}
+
+            if ( $query['where'] ) {
+                $whr = $query['where'];
+                $parteswhr = explode(",",$whr);
+                $pwsql = array();
+                foreach ($parteswhr as $pwhr) {
+                    $partespwhr = explode("=",$pwhr);
+                    if ( !$this->verify_column( $partespwhr[0], $query['table'] ) ) {
+                        return false;
+                    }
+                    $pwsql[] = "{$query['table']}.{$partespwhr[0]} = {$partespwhr[1]}";
+                }
+
+                $awsql = implode(" AND ",$pwsql);
+                if (preg_match("/^ WHERE/",$wsql)) {
+                    $wsql = $wsql." AND ".$awsql;
+                }
+                else {
+                    $wsql = " WHERE ".$awsql;
+                }
+
+            }
 
 			if ( $query['order_by'] ) {
                 $oby = $query['order_by'];
