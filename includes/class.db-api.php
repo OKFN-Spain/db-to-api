@@ -253,7 +253,7 @@ class DB_API {
 			$dbh = &$this->connect( $db );
 			try { 
                 if ( $this->dbtype == 'sqlite' ){
-                    $stmt = $dbh->query( 'SELECT name, sql FROM sqlite_master WHERE type=\'table\' ORDER BY name;' );
+                    $stmt = $dbh->query( 'SELECT name, sql FROM sqlite_master WHERE (type=\'table\' OR type=\'view\') ORDER BY name;' );
                 }
                 else {
                     $stmt = $dbh->query( 'SELECT table_name FROM INFORMATION_SCHEMA.COLUMNS;' );
