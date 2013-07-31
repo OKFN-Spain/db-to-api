@@ -10,6 +10,7 @@ $args = array(
             'server' => 'localhost',
             'port' => 3306,
             'type' => 'mysql',
+            'table_whitelist' => array(),
             'table_blacklist' => array(),
             'column_blacklist' => array(),
 );

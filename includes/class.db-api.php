@@ -41,6 +41,7 @@ class DB_API {
 			'server' => 'localhost',
 			'port' => 5432,
 			'type' => 'pgsql',
+			'table_whitelist' => array(),
 			'table_blacklist' => array(),
 			'column_blacklist' => array(),
 			'ttl' => $this->ttl,
@@ -167,9 +168,14 @@ class DB_API {
 
 		$db = $this->get_db( $parts['db'] );
 
-		if ( in_array( $parts['table'], $db->table_blacklist ) ) {
+		if ( count($db->table_whitelist) > 0 && !in_array( $parts['table'], $db->table_whitelist ) ) {
+			$this->error( 'Invalid table', 404 );
+        }
+        
+        if ( count($db->table_whitelist) == 0 && in_array( $parts['table'], $db->table_blacklist ) ) {
 			$this->error( 'Invalid table', 404 );
 		}
+
 
 		if ( !in_array( $parts['format'], array( 'html', 'xml', 'json' ) ) ) {
 			$parts['format'] = null;

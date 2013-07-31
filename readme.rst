@@ -67,6 +67,13 @@ Usage
 4. Be aware that some Apache2 configurations prevent from reading *.htaccess* files
 5. In *.htaccess* you should change the RewriteBase directive
 
+Tables Blacklist/Whitelist
+---------------------------
+
+Either a blacklist or a whitelist of tables can be implemented in order to limit the direct access to the database tables.
+
+The whitelist takes preference over the blacklist.
+
 How to Register a Dataset
 -------------------------
 
