@@ -46,7 +46,10 @@ Additional Parameters
 
 * ``order_by``: name of column or columns to sort by, each column must be separated by comma. Add suffix ``.desc`` for reverse sorting (``.asc`` also works)
 * ``limit``: number, maximum number of results to return
-* ``where``: filtering only for very simple conditions (i.e. ``[column]=[value]``)
+* ``where``: filtering only for very simple conditions:
+
+    +  Equality condition ``[column]=[value]``
+    +  Inequality condition ``[column]!=[value]``
 
 e.g., ``/[database]/[table]/[column]/[value].[format]?order_by=[column_1].desc,[column_2]&limit=10&where=[column_3]=[value_2]``
 

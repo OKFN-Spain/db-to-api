@@ -413,11 +413,21 @@ class DB_API {
                 $parteswhr = explode(",",$whr);
                 $pwsql = array();
                 foreach ($parteswhr as $pwhr) {
-                    $partespwhr = explode("=",$pwhr);
+
+                	if (preg_match("/!=/",$pwhr)) 
+                	{
+	                    $partespwhr = explode("!=",$pwhr);
+                		$operator = "!=";
+                	}
+                	else
+                	{
+                    	$partespwhr = explode("=",$pwhr);
+                		$operator = "=";
+                	}
                     if ( !$this->verify_column( $partespwhr[0], $query['table'] ) ) {
                         return false;
                     }
-                    $pwsql[] = "{$query['table']}.{$partespwhr[0]} = {$partespwhr[1]}";
+                    $pwsql[] = "{$query['table']}.{$partespwhr[0]} {$operator} {$partespwhr[1]}";
                 }
 
                 $awsql = implode(" AND ",$pwsql);
